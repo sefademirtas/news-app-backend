@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "news-app-backend",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "triggers": { "crons": ["0 7 * * *"] },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "news-db",
+      "database_id": "f2c1089f-bfb2-40cb-baca-48910372764b",
+      "migrations_dir": "migrations"
+    }
+  ]
+}
