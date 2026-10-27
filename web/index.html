@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>News Intelligence</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --surface: #fff; --text: #1a202c; --muted: #64748b; --border: #e2e8f0;
+    --accent: #2457d6; --accent-hover: #1b44ab;
+    --high-bg: #dcfce7; --high-fg: #166534;
+    --mid-bg: #fef3c7; --mid-fg: #92400e;
+    --low-bg: #e2e8f0; --low-fg: #475569;
+    --error-bg: #fee2e2; --error-fg: #991b1b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1419; --surface: #1a2029; --text: #e6e9ee; --muted: #94a3b8; --border: #2a3441;
+      --accent: #6b9bff; --accent-hover: #93b4ff;
+      --high-bg: #14532d; --high-fg: #bbf7d0;
+      --mid-bg: #78350f; --mid-fg: #fde68a;
+      --low-bg: #334155; --low-fg: #cbd5e1;
+      --error-bg: #7f1d1d; --error-fg: #fecaca;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 16px 64px; }
+  header { padding: 32px 0 20px; display: flex; flex-wrap: wrap; gap: 16px;
+    align-items: flex-end; justify-content: space-between; }
+  h1 { margin: 0; font-size: 1.75rem; letter-spacing: -0.02em; }
+  .updated { margin: 4px 0 0; color: var(--muted); font-size: 0.9rem; }
+  button { font: inherit; font-weight: 600; background: var(--accent); color: #fff; border: 0;
+    border-radius: 8px; padding: 10px 18px; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; }
+  button:hover:not(:disabled) { background: var(--accent-hover); }
+  button:disabled { opacity: .7; cursor: progress; }
+  .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.4);
+    border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; display: none; }
+  button.loading .spinner { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .filters { display: flex; flex-wrap: wrap; gap: 16px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 8px; }
+  .filters label { display: flex; flex-direction: column; gap: 4px; font-size: .8rem;
+    font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  select { font: inherit; font-size: .95rem; text-transform: none; letter-spacing: 0; font-weight: 400;
+    color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; min-width: 170px; }
+  h2 { font-size: 1.15rem; margin: 32px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--border);
+    display: flex; justify-content: space-between; align-items: baseline; }
+  h2 .count { font-size: .85rem; font-weight: 400; color: var(--muted); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; margin-bottom: 12px; }
+  .card-top { display: flex; gap: 14px; justify-content: space-between; align-items: flex-start; }
+  .card h3 { margin: 0; font-size: 1.05rem; line-height: 1.35; }
+  .card h3 a { color: var(--text); text-decoration: none; }
+  .card h3 a:hover { color: var(--accent); text-decoration: underline; }
+  .badge { flex: none; font-weight: 700; font-size: .85rem; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+  .badge.high { background: var(--high-bg); color: var(--high-fg); }
+  .badge.mid { background: var(--mid-bg); color: var(--mid-fg); }
+  .badge.low { background: var(--low-bg); color: var(--low-fg); }
+  .meta { color: var(--muted); font-size: .85rem; margin: 4px 0 8px; }
+  .summary { margin: 0; }
+  .notice { padding: 14px 16px; border-radius: 10px; margin: 16px 0; }
+  .notice.error { background: var(--error-bg); color: var(--error-fg); }
+  .notice.empty { text-align: center; color: var(--muted); background: var(--surface); border: 1px dashed var(--border); }
+  .chat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px; }
+  .chat > summary { cursor: pointer; padding: 12px 16px; font-weight: 700; }
+  .chat-body { padding: 0 16px 16px; }
+  .chat-model { display: flex; align-items: center; gap: 8px; font-size: .8rem; font-weight: 600;
+    color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 10px; }
+  .chat-log { height: 320px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg); padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .msg { max-width: 88%; padding: 8px 12px; border-radius: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .msg.user { align-self: flex-end; background: var(--accent); color: #fff; }
+  .msg.bot { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); }
+  .msg.bot.error { background: var(--error-bg); color: var(--error-fg); border-color: transparent; }
+  .msg.bot.pending { color: var(--muted); font-style: italic; }
+  .msg a { color: var(--accent); font-weight: 600; text-decoration: none; }
+  .usage { display: block; margin-top: 6px; font-size: .75rem; color: var(--muted); }
+  .chat-form { display: flex; gap: 8px; margin-top: 10px; }
+  .chat-form input { flex: 1; min-width: 0; font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>News Intelligence</h1>
+      <p class="updated" id="updated">Loading…</p>
+    </div>
+    <button id="refresh" type="button"><span class="spinner"></span><span id="refresh-label">Refresh</span></button>
+  </header>
+
+  <details class="chat" open>
+    <summary>Ask about the articles</summary>
+    <div class="chat-body">
+      <label class="chat-model">Model
+        <select id="chat-model">
+          <option value="haiku">Fast (Haiku)</option>
+          <option value="sonnet" selected>Capable (Sonnet)</option>
+        </select>
+      </label>
+      <div class="chat-log" id="chat-log" role="log" aria-live="polite">
+        <div class="msg bot">Ask a question and I'll answer from the latest stored articles.</div>
+      </div>
+      <form class="chat-form" id="chat-form">
+        <input id="chat-input" type="text" maxlength="1000" placeholder="e.g. Which states restrict AI therapy chatbots?" autocomplete="off" aria-label="Your question">
+        <button id="chat-send" type="submit">Send</button>
+      </form>
+    </div>
+  </details>
+
+  <section class="filters" aria-label="Filters">
+    <label>Topic
+      <select id="f-topic">
+        <option value="">All topics</option>
+      </select>
+    </label>
+    <label>Minimum relevance
+      <select id="f-score">
+        <option value="1">Any (1+)</option>
+        <option value="5">5+</option>
+        <option value="6">6+</option>
+        <option value="7">7+</option>
+        <option value="8">8+</option>
+        <option value="9">9+</option>
+      </select>
+    </label>
+    <label>Articles to show
+      <select id="f-limit">
+        <option value="5">5</option>
+        <option value="10">10</option>
+        <option value="20">20</option>
+        <option value="40" selected>40</option>
+      </select>
+    </label>
+  </section>
+
+  <div id="status"></div>
+  <main id="articles"></main>
+</div>
+
+<script>
+const API = "https://news-app-backend.sefademirtas.workers.dev";
+const TOPIC_LABELS = {
+  "ai-workplace": "AI in the Workplace",
+  "ai-psychotherapy": "AI in Psychotherapy",
+};
+
+const $ = (id) => document.getElementById(id);
+const el = (tag, cls, text) => {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text;
+  return n;
+};
+
+let allArticles = [];
+
+const topicLabel = (id) => TOPIC_LABELS[id] || id;
+const badgeClass = (s) => (s >= 8 ? "high" : s >= 6 ? "mid" : "low");
+
+function formatDate(d) {
+  if (!d) return "Date unknown";
+  return new Date(d + "T12:00:00").toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+function setStatus(message, kind) {
+  const box = $("status");
+  box.replaceChildren();
+  if (message) box.append(el("div", "notice " + kind, message));
+}
+
+function renderUpdated() {
+  const times = allArticles.map((a) => Date.parse(a.fetched_at)).filter(Number.isFinite);
+  if (!times.length) { $("updated").textContent = "No data yet"; return; }
+  const last = new Date(Math.max(...times));
+  $("updated").textContent = "Last refreshed " + last.toLocaleString(undefined, {
+    month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short",
+  });
+}
+
+function render() {
+  const topic = $("f-topic").value;
+  const minScore = Number($("f-score").value);
+  const limit = Number($("f-limit").value);
+
+  const shown = allArticles
+    .filter((a) => (!topic || a.topic === topic) && a.relevance_score >= minScore)
+    .slice(0, limit);
+
+  const root = $("articles");
+  root.replaceChildren();
+  if (!shown.length) {
+    root.append(el("div", "notice empty", "No articles match these filters."));
+    return;
+  }
+
+  const groups = new Map();
+  for (const a of shown) {
+    if (!groups.has(a.topic)) groups.set(a.topic, []);
+    groups.get(a.topic).push(a);
+  }
+
+  for (const [id, items] of groups) {
+    const h2 = el("h2", "", topicLabel(id));
+    h2.append(el("span", "count", items.length + (items.length === 1 ? " article" : " articles")));
+    root.append(h2);
+
+    for (const a of items) {
+      const card = el("article", "card");
+      const top = el("div", "card-top");
+      const h3 = el("h3");
+      const link = el("a", "", a.headline);
+      link.href = a.url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      h3.append(link);
+      const badge = el("span", "badge " + badgeClass(a.relevance_score), a.relevance_score + "/10");
+      badge.title = "Relevance score";
+      top.append(h3, badge);
+      card.append(top, el("div", "meta", a.source + " · " + formatDate(a.published_at)), el("p", "summary", a.summary || ""));
+      root.append(card);
+    }
+  }
+}
+
+function populateTopics() {
+  const select = $("f-topic");
+  const current = select.value;
+  const ids = [...new Set(allArticles.map((a) => a.topic))];
+  select.replaceChildren(new Option("All topics", ""));
+  for (const id of ids) select.append(new Option(topicLabel(id), id));
+  select.value = ids.includes(current) ? current : "";
+}
+
+async function loadArticles() {
+  const res = await fetch(API + "/articles?limit=200");
+  if (!res.ok) throw new Error("Articles request failed (" + res.status + ")");
+  const data = await res.json();
+  allArticles = data.articles;
+  populateTopics();
+  renderUpdated();
+  render();
+}
+
+async function load() {
+  setStatus("", "");
+  try { await loadArticles(); }
+  catch (err) { setStatus("Could not load articles: " + err.message, "error"); $("updated").textContent = "Unavailable"; }
+}
+
+function getAgentKey(forcePrompt) {
+  let key = null;
+  try { key = localStorage.getItem("agentKey"); } catch {}
+  if (!key || forcePrompt) {
+    key = (prompt("Enter the refresh password:") || "").trim();
+    if (key) { try { localStorage.setItem("agentKey", key); } catch {} }
+  }
+  return key;
+}
+
+async function refresh() {
+  const key = getAgentKey(false);
+  if (!key) return;
+  const btn = $("refresh");
+  btn.disabled = true;
+  btn.classList.add("loading");
+  $("refresh-label").textContent = "Refreshing… (about a minute)";
+  setStatus("", "");
+  try {
+    const res = await fetch(API + "/agent", { method: "POST", headers: { Authorization: "Bearer " + key } });
+    const result = await res.json();
+    if (res.status === 401) {
+      try { localStorage.removeItem("agentKey"); } catch {}
+      throw new Error("Wrong password. Click Refresh to try again.");
+    }
+    if (!res.ok) throw new Error(result.error || "Agent failed (" + res.status + ")");
+    await loadArticles();
+    const failed = result.topics.filter((t) => t.error);
+    if (failed.length) setStatus("Some topics failed: " + failed.map((t) => topicLabel(t.topic) + " – " + t.error).join("; "), "error");
+  } catch (err) {
+    setStatus("Refresh failed: " + err.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove("loading");
+    $("refresh-label").textContent = "Refresh";
+  }
+}
+
+function renderAnswer(node, text, sources) {
+  const urls = Object.fromEntries((sources || []).map((s) => [s.ref, s.url]));
+  const lines = text.split("\n");
+  lines.forEach((line, i) => {
+    if (i) node.append("\n");
+    line = line.replace(/^\s*[-*] /, "• ");
+    for (const part of line.split(/(\*\*[^*]+\*\*|\[\d+\])/)) {
+      const ref = /^\[(\d+)\]$/.exec(part);
+      if (part.startsWith("**") && part.endsWith("**") && part.length > 4) node.append(el("strong", "", part.slice(2, -2)));
+      else if (ref && urls[ref[1]]) {
+        const a = el("a", "", part);
+        a.href = urls[ref[1]]; a.target = "_blank"; a.rel = "noopener noreferrer";
+        node.append(a);
+      } else node.append(part);
+    }
+  });
+}
+
+async function sendChat(e) {
+  e.preventDefault();
+  const input = $("chat-input");
+  const question = input.value.trim();
+  if (!question) return;
+  const key = getAgentKey(false);
+  if (!key) return;
+
+  const log = $("chat-log");
+  const add = (cls, text) => { const m = el("div", "msg " + cls, text); log.append(m); log.scrollTop = log.scrollHeight; return m; };
+  add("user", question);
+  input.value = "";
+  const pending = add("bot pending", "Thinking…");
+  $("chat-send").disabled = true;
+  try {
+    const res = await fetch(API + "/chat", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
+      body: JSON.stringify({ question, model: $("chat-model").value }),
+    });
+    const data = await res.json();
+    if (res.status === 401) {
+      try { localStorage.removeItem("agentKey"); } catch {}
+      throw new Error("Wrong password. Send again to re-enter it.");
+    }
+    if (!res.ok) throw new Error(data.error || "Chat failed (" + res.status + ")");
+    pending.className = "msg bot";
+    pending.textContent = "";
+    renderAnswer(pending, data.answer, data.sources);
+    const u = data.usage;
+    pending.append(el("span", "usage", u.input_tokens.toLocaleString() + " tokens in · " + u.output_tokens.toLocaleString() + " out · " + data.model));
+  } catch (err) {
+    pending.className = "msg bot error";
+    pending.textContent = err.message;
+  } finally {
+    $("chat-send").disabled = false;
+    log.scrollTop = log.scrollHeight;
+    input.focus();
+  }
+}
+
+for (const id of ["f-topic", "f-score", "f-limit"]) $(id).addEventListener("change", render);
+$("refresh").addEventListener("click", refresh);
+$("chat-form").addEventListener("submit", sendChat);
+load();
+</script>
+</body>
+</html>

@@ -29,7 +29,7 @@ export interface TopicResult {
   error?: string;
 }
 
-const MODEL = "claude-opus-5-5";
+const MODEL = "claude-sonnet-5-5";
 const MAX_PAUSE_TURNS = 5;
 
 function buildPrompt(topic: Topic): string {
